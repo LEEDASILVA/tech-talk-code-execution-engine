@@ -29,6 +29,8 @@ transition: slide-left
 
 ### Code execution engine (CEE) is a service that interprets and executes programming code written in various programming languages.
 
+<br>
+
 Some key aspects :
 
 - 🛡️ **Isolation**
@@ -38,7 +40,7 @@ Some key aspects :
 - 🔒 **Security**
 - 💾 **Resource Management**
 - 🏞️ **Execution Environment**
-- 🪅 **Others...**
+
 <!--
 To describe Piston we will start by describing what is a code execution engine. So a code execution engine is a service that interprets and executes code written in any programming language.
 
@@ -84,327 +86,251 @@ So Piston is a high performance code execution engine that can be used to run an
 
 ---
 transition: slide-left
+layout: image-right
+image: https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fi.pinimg.com%2Foriginals%2Fb7%2F9f%2F15%2Fb79f155970b3605295da4ba0ec2267bb.jpg&f=1&nofb=1&ipt=f02eeb88066434cec3d4c0baef28a2245178a22424f7fd6f0552a0e46565c0a2&ipo=images
 ---
 
 # Piston
 
-Design goals && some bumps 
+Code execution engine, design goals & some bumps
 
+## Secure & Fast
+
+<br>
+<br>
+
+### The problem with the code execution engine is that it needs to take in any code and execute it fast, near native speeds, and securely. Sometimes that code can be extraordinary hostile.
 
 <!--
-The main goal of piston was to run the code fast and securely
+The main goal of a code execution engine is to run the code fast and securely.
+
+So the design should be maid in a way that even if someone gave it hostile code it is able to resist any of the negative effects that the code might have.
+-->
+
+---
+transition: slide-left
+---
+
+# Examples of hostile code
+
+<br>
+
+## Delete the entire system 😱
+
+<br>
+
+```sh
+rm -rf /
+```
+
+<br>
+<br>
+
+## Fork bomb 💥
+
+<br>
+
+```sh
+:(){ :|: &}:;
+```
+
+```python
+while True: os.fork()
+```
+
+<!--
+For instance, if someone wanted to run bash and gave it code like this one. (which removes everything from the system and the other flood the system with processes)
+
+The code engine needed to be configured in such a way that won't delete the entire system or take all the resources of the system.
+-->
+
+---
+transition: slide-left
+layout: image-right
+image: https://miro.medium.com/v2/resize:fit:400/1*KWeXamv1oqIvzKLlPhn-rA.png
+---
+
+# Make it secure
+
+Docker
+
+### Docker is a fantastic fit for the security design
+
+<br>
+
+### But... Docker is very slow for this use case.
+
+<br>
+
+- Start containers takes some time
+- docker daemon is synchronous
+
+<br>
+
+### User experience will not be good 👎
+<!--
+The first instinct to solve those design problems is to use Docker which is a fantastic fit for the security design.
+
+Since docker containers ceases to exist once stopped running, meaning that even if someone were to run the malicious code, as soon as the container stops it wouldn't affect the host machine.
+
+It is also possible to set resource limits to containers, this would allow containers to not overuse resources.
+
+BUT docker is slow for building a code execution engine!
+
+- Docker is not able to start containers fast enough
+- docker daemon is synchronous which means if you want for example to startup 10 containers they happen one after another. So docker is not able to parallel startup containers (for instance if we want to run multiple codes for different users it would mean that each container would be the isolated code and starting up all those containers at once would not work properly, it will take a lot of time)
+-->
+
+---
+layout: two-cols
+---
+
+# Alternative
+
+<br>
+
+## Docker in Docker
+
+<br>
+<br>
+
+## Having a single docker container that would have multiple docker engines.
+
+<br>
+<br>
+<br>
+
+### Docker daemons is a code background service responsible for managing Docker containers.
+
+<!--
+One alternative to consider is to do what its called docker in docker
+
+Which consists in a single docker container that would have a bunch of docker daemons (Docker Engine, is the core background service responsible for managing Docker containers and related resources on the host system), making it possible to parallelize the execution of code, solving the problem of executing more that once code at once.
+
+But this would not solve the problem of the starting delay of the containers.
+-->
+
+<style>
+img {
+  width: 90%;
+  position: absolute;
+  left: 10%;
+  bottom: 25%;
+}
+</style>
+
+::right::
+
+<div>
+  <img src="/docker-in-docker.png">
+</div>
+
+---
+---
+
+# Piston alternative
+
+LXC
+
+## Piston implemented their code execution engine in a environment of linux containers (LXC).
+
+<br>
+<br>
+
+### Linux containers (LXC) are muiltiple isolated linux systems on a single host.
+
+<br>
+<br>
+<br>
+
+## On of the trade-offs would be complexity.
+
+<!--
+So to solve all the problems Piston implemented their code execution engine in a linux container environment.
+
+So having multiple isolated linux systems on a single host.
+
+One of the trade-offs is the complexity of installation and configuration
+-->
+
+---
+---
+
+# How does Piston do it?
+
+<br>
+
+### When a request comes in with all the information it will create the the necessary files, then a custom script gets invoked to run the code.
+
+<br>
+<br>
+
+### The script contains code that would look something like this:
+
+<br>
+
+```sh
+cd /tmp/$2
+runuser runner$1 -c "cd /tmp/$2 ; cat args.args | xargs -d '\n' timeout -s KILL 3 python3 code.code
+```
+
+<!--
+But how does it work?
+
+So once the incoming request comes in with all the necessary information it will create 2 files:
+
+- one that contains the source code
+- and the other that contains new lines separated list of command line arguments
+
+Once those 2 files are in place a custom script () gets invoked to run the code.
+
+Each programming language contains a script
+
+and it looks something like the example here
+
+where it will run the code with the given arguments, you can see that it also contains a timeout of 3s, so if the code takes more then 3s it would kill the process
 
 
 -->
 
 ---
-layout: image-right
-image: https://source.unsplash.com/collection/94734566/1920x1080
 ---
 
 # Different accesses
 
-Use code snippets and get the highlighting directly![^1]
+<br>
 
-```ts {all|2|1-6|9|all}
-interface User {
-  id: number
-  firstName: string
-  lastName: string
-  role: string
-}
+### Discord bot
 
-function updateUser(id: number, update: User) {
-  const user = getUser(id)
-  const newUser = { ...user, ...update }
-  saveUser(id, newUser)
-}
+<img src="/discord-run-code.png">
+<br>
+
+## Public API
+
+<br>
+
+```
+GET  https://emkc.org/api/v2/piston/runtimes # <- get all programming languages
+POST https://emkc.org/api/v2/piston/execute # <- execute code
 ```
 
-<arrow v-click="3" x1="400" y1="420" x2="230" y2="330" color="#564" width="3" arrowSize="1" />
 
-[^1]: [Learn More](https://sli.dev/guide/syntax.html#line-highlighting)
+<!--
+So how can you use Piston
+
+They have several access, which can be a discord bot. Here in madeira we actually installed a bot on our server
+-->
+
+---
+---
+
+# Different accesses
 
 <style>
-.footnotes-sep {
-  @apply mt-20 opacity-10;
-}
-.footnotes {
-  @apply text-sm opacity-75;
-}
-.footnote-backref {
-  display: none;
+img {
+  width: 60%;
 }
 </style>
 
----
 
-# Components
-
-<div grid="~ cols-2 gap-4">
-<div>
-
-You can use Vue components directly inside your slides.
-
-We have provided a few built-in components like `<Tweet/>` and `<Youtube/>` that you can use directly. And adding your custom components is also super easy.
-
-```html
-<Counter :count="10" />
-```
-
-<!-- ./components/Counter.vue -->
-<Counter :count="10" m="t-4" />
-
-Check out [the guides](https://sli.dev/builtin/components.html) for more.
-
-</div>
-<div>
-
-```html
-<Tweet id="1390115482657726468" />
-```
-
-<Tweet id="1390115482657726468" scale="0.65" />
-
-</div>
-</div>
-
-<!--
-Presenter note with **bold**, *italic*, and ~~striked~~ text.
-
-Also, HTML elements are valid:
-<div class="flex w-full">
-  <span style="flex-grow: 1;">Left content</span>
-  <span>Right content</span>
-</div>
--->
-
-
----
-class: px-20
----
-
-# Themes
-
-Slidev comes with powerful theming support. Themes can provide styles, layouts, components, or even configurations for tools. Switching between themes by just **one edit** in your frontmatter:
-
-<div grid="~ cols-2 gap-2" m="-t-2">
-
-```yaml
----
-theme: default
----
-```
-
-```yaml
----
-theme: seriph
----
-```
-
-<img border="rounded" src="https://github.com/slidevjs/themes/blob/main/screenshots/theme-default/01.png?raw=true">
-
-<img border="rounded" src="https://github.com/slidevjs/themes/blob/main/screenshots/theme-seriph/01.png?raw=true">
-
-</div>
-
-Read more about [How to use a theme](https://sli.dev/themes/use.html) and
-check out the [Awesome Themes Gallery](https://sli.dev/themes/gallery.html).
-
----
-preload: false
----
-
-# Animations
-
-Animations are powered by [@vueuse/motion](https://motion.vueuse.org/).
-
-```html
-<div
-  v-motion
-  :initial="{ x: -80 }"
-  :enter="{ x: 0 }">
-  Slidev
-</div>
-```
-
-<div class="w-60 relative mt-6">
-  <div class="relative w-40 h-40">
-    <img
-      v-motion
-      :initial="{ x: 800, y: -100, scale: 1.5, rotate: -50 }"
-      :enter="final"
-      class="absolute top-0 left-0 right-0 bottom-0"
-      src="https://sli.dev/logo-square.png"
-    />
-    <img
-      v-motion
-      :initial="{ y: 500, x: -100, scale: 2 }"
-      :enter="final"
-      class="absolute top-0 left-0 right-0 bottom-0"
-      src="https://sli.dev/logo-circle.png"
-    />
-    <img
-      v-motion
-      :initial="{ x: 600, y: 400, scale: 2, rotate: 100 }"
-      :enter="final"
-      class="absolute top-0 left-0 right-0 bottom-0"
-      src="https://sli.dev/logo-triangle.png"
-    />
-  </div>
-
-  <div
-    class="text-5xl absolute top-14 left-40 text-[#2B90B6] -z-1"
-    v-motion
-    :initial="{ x: -80, opacity: 0}"
-    :enter="{ x: 0, opacity: 1, transition: { delay: 2000, duration: 1000 } }">
-    Slidev
-  </div>
-</div>
-
-<!-- vue script setup scripts can be directly used in markdown, and will only affects current page -->
-<script setup lang="ts">
-const final = {
-  x: 0,
-  y: 0,
-  rotate: 0,
-  scale: 1,
-  transition: {
-    type: 'spring',
-    damping: 10,
-    stiffness: 20,
-    mass: 2
-  }
-}
-</script>
-
-<div
-  v-motion
-  :initial="{ x:35, y: 40, opacity: 0}"
-  :enter="{ y: 0, opacity: 1, transition: { delay: 3500 } }">
-
-[Learn More](https://sli.dev/guide/animations.html#motion)
-
-</div>
-
----
-
-# LaTeX
-
-LaTeX is supported out-of-box powered by [KaTeX](https://katex.org/).
-
-<br>
-
-Inline $\sqrt{3x-1}+(1+x)^2$
-
-Block
-$$
-\begin{array}{c}
-
-\nabla \times \vec{\mathbf{B}} -\, \frac1c\, \frac{\partial\vec{\mathbf{E}}}{\partial t} &
-= \frac{4\pi}{c}\vec{\mathbf{j}}    \nabla \cdot \vec{\mathbf{E}} & = 4 \pi \rho \\
-
-\nabla \times \vec{\mathbf{E}}\, +\, \frac1c\, \frac{\partial\vec{\mathbf{B}}}{\partial t} & = \vec{\mathbf{0}} \\
-
-\nabla \cdot \vec{\mathbf{B}} & = 0
-
-\end{array}
-$$
-
-<br>
-
-[Learn more](https://sli.dev/guide/syntax#latex)
-
----
-
-# Diagrams
-
-You can create diagrams / graphs from textual descriptions, directly in your Markdown.
-
-<div class="grid grid-cols-3 gap-10 pt-4 -mb-6">
-
-```mermaid {scale: 0.5}
-sequenceDiagram
-    Alice->John: Hello John, how are you?
-    Note over Alice,John: A typical interaction
-```
-
-```mermaid {theme: 'neutral', scale: 0.8}
-graph TD
-B[Text] --> C{Decision}
-C -->|One| D[Result 1]
-C -->|Two| E[Result 2]
-```
-
-```mermaid
-mindmap
-  root((mindmap))
-    Origins
-      Long history
-      ::icon(fa fa-book)
-      Popularisation
-        British popular psychology author Tony Buzan
-    Research
-      On effectivness<br/>and features
-      On Automatic creation
-        Uses
-            Creative techniques
-            Strategic planning
-            Argument mapping
-    Tools
-      Pen and paper
-      Mermaid
-```
-
-```plantuml {scale: 0.7}
-@startuml
-
-package "Some Group" {
-  HTTP - [First Component]
-  [Another Component]
-}
-
-node "Other Groups" {
-  FTP - [Second Component]
-  [First Component] --> FTP
-}
-
-cloud {
-  [Example 1]
-}
-
-
-database "MySql" {
-  folder "This is my folder" {
-    [Folder 3]
-  }
-  frame "Foo" {
-    [Frame 4]
-  }
-}
-
-
-[Another Component] --> [Example 1]
-[Example 1] --> [Folder 3]
-[Folder 3] --> [Frame 4]
-
-@enduml
-```
-
-</div>
-
-[Learn More](https://sli.dev/guide/syntax.html#diagrams)
-
----
-src: ./pages/multiple-entries.md
-hide: false
----
-
----
-layout: center
-class: text-center
----
-
-# Learn More
-
-[Documentations](https://sli.dev) · [GitHub](https://github.com/slidevjs/slidev) · [Showcases](https://sli.dev/showcases.html)
+<img src="/api-run-code.png">
