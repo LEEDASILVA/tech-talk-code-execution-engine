@@ -23,6 +23,10 @@ Code execution engine
 transition: slide-left
 ---
 
+<!--
+Today i will be talk about code execution engine and the package Piston
+-->
+
 # What is Code execution engine
 
 <br>
@@ -177,6 +181,8 @@ It is also possible to set resource limits to containers, this would allow conta
 
 BUT docker is slow for building a code execution engine!
 
+Why is it slow ?
+
 - Docker is not able to start containers fast enough
 - docker daemon is synchronous which means if you want for example to startup 10 containers they happen one after another. So docker is not able to parallel startup containers (for instance if we want to run multiple codes for different users it would mean that each container would be the isolated code and starting up all those containers at once would not work properly, it will take a lot of time)
 -->
@@ -205,7 +211,7 @@ layout: two-cols
 <!--
 One alternative to consider is to do what its called docker in docker
 
-Which consists in a single docker container that would have a bunch of docker daemons (Docker Engine, is the core background service responsible for managing Docker containers and related resources on the host system), making it possible to parallelize the execution of code, solving the problem of executing more that once code at once.
+Which consists in a single docker container that would have a bunch of docker daemons (Docker Engine, is the core background service responsible for managing Docker containers and related resources on the host system), making it possible the execution of code in parallel (the sensation that it is in parallel), solving the problem of executing more that once code at once.
 
 But this would not solve the problem of the starting delay of the containers.
 -->
@@ -251,6 +257,8 @@ So to solve all the problems Piston implemented their code execution engine in a
 So having multiple isolated linux systems on a single host.
 
 One of the trade-offs is the complexity of installation and configuration
+
+But regarding security and speed it solved most of the problems. Of curse they actually implemented some additional security checks.
 -->
 
 ---
@@ -280,7 +288,7 @@ But how does it work?
 So once the incoming request comes in with all the necessary information it will create 2 files:
 
 - one that contains the source code
-- and the other that contains new lines separated list of command line arguments
+- and the other that contains list of command line arguments separated by new lines
 
 Once those 2 files are in place a custom script () gets invoked to run the code.
 
@@ -288,7 +296,7 @@ Each programming language contains a script
 
 and it looks something like the example here
 
-where it will run the code with the given arguments, you can see that it also contains a timeout of 3s, so if the code takes more then 3s it would kill the process
+It will run the code with the given arguments, you can see that it also contains a timeout of 3s, so if the code takes more then 3s it would kill the process
 
 
 -->
